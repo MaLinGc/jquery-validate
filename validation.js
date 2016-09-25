@@ -1,4 +1,3 @@
-/*http://www.tuicool.com/articles/rQRBru*/
 
 (function ($) {
 
