@@ -1,4 +1,3 @@
-
 (function ($) {
 
     "use strict";
@@ -43,7 +42,20 @@
             form.on("submit", methods._onSubmitEvent);
             return this;
         },
+        destroy: function (userOptions) {
+            var form = this, options;
+            options = userOptions ? methods._saveOptions(form, userOptions) : form.data('jqv');
+            // unbind fields
+            form.find("[class*=validate]:not([type=checkbox]):not([type=radio])").off("blur", methods._onFieldEvent);
+            form.find("[class*=validate][type=checkbox],[class*=validate][type=radio]").off("change", methods._onFieldEvent);
+            form.off("click", "a[class*='validate-skip'], button[class*='validate-skip'], input[class*='validate-skip']", methods._submitButtonClick);
+            form.removeData('jqv_submitButton');
 
+            form.find("[class*=validate]").removeClass(options.addFailureCssClassToField);
+            form.removeData('jqv');
+            $("[class*=validate]").tooltip('destroy');
+            return this;
+        },
         validate: function () {
             var element = $(this);
             var valid = null;
@@ -190,7 +202,6 @@
             var rules = str.split(/\[|,|\]/);
 
             var promptText = "";
-            var required = false;
 
             var form = $(field.closest("form"));
             // Fix for adding spaces in the rules
@@ -201,12 +212,11 @@
                     delete rules[i];
                 }
             }
-            for (var i = 0, field_errors = 0; i < rules.length; i++) {
+            for (var i = 0,field_errors = 0 ; i < rules.length; i++) {
 
                 var errorMsg = undefined;
                 switch (rules[i]) {
                     case "required":
-                        required = true;
                         errorMsg = methods._getErrorMessage(form, field, rules[i], rules, i, options, methods._required);
                         break;
                     case "custom":
@@ -219,11 +229,11 @@
                     promptText += errorMsg + ";";
                     options.isError = true;
                     field_errors++;
-                } else {
-                    options.isError = false;
                 }
             }
-            if (!required && !(field.val()) && field.val().length < 1 && $.inArray('equals', rules) < 0) options.isError = false;
+            if (field_errors < 1)
+                options.isError = false;
+
             methods._updatePrompt(form, field, promptText, options);
             return options.isError;
         },
@@ -290,22 +300,24 @@
             var fieldType = field.prop("type");
             var fieldName = field.attr("name");
 
-            if ((fieldType == "radio" || fieldType == "checkbox") && form.find("input[name='" + fieldName + "']").size() > 1) {
-                field = $(form.find("input[name='" + fieldName + "'][type!=hidden]:last"));
-            }
-            if (options.addFailureCssClassToField)
-                field.removeClass(options.addFailureCssClassToField);
-            field.attr("data-toggle", "tooltip");
-            field.attr("data-original-title", "");
-            field.attr("title", "");
-            if (options.isError) {
-                field.attr("data-toggle", "tooltip");
-                field.attr("data-original-title", promptText);
-                field.attr("title", promptText);
+
+            if (fieldType == "radio" || fieldType == "checkbox") {
+                field = $(form.find("input[name='" + fieldName + "'][type!=hidden]:last").parents("div.form-group"));
+                field.removeClass("has-error");
+                if (options.isError) {
+                    field.addClass("has-error");
+                    field.attr("title", promptText);
+                }
+            } else {
                 if (options.addFailureCssClassToField)
-                    field.addClass(options.addFailureCssClassToField);
+                    field.removeClass(options.addFailureCssClassToField);
+                field.attr("title", "");
+                if (options.isError) {
+                    field.attr("title", promptText);
+                    if (options.addFailureCssClassToField)
+                        field.addClass(options.addFailureCssClassToField);
+                }
             }
-            $("[class*=validate]").tooltip('show');
         }
     };
 
@@ -317,7 +329,7 @@
             // set to true if you want to validate the input fields on blur only if the field it's not empty
             notEmpty: false,
 
-            addFailureCssClassToField: "has-error",
+            addFailureCssClassToField: "error",
             isError: false,
 
             InvalidFields: [],
